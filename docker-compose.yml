@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: grc-kpi-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: grc
+      POSTGRES_PASSWORD: grc
+      POSTGRES_DB: grc
+    ports:
+      - "5432:5432"
+    volumes:
+      - grc_pgdata:/var/lib/postgresql/data
+
+volumes:
+  grc_pgdata:

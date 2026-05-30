@@ -1,0 +1,95 @@
+// GRC Platform — Cybersecurity / ISMS KPI module
+//
+// Default datasource is PostgreSQL (run `docker compose up -d db`).
+// SQLite fallback (zero infra): change provider to "sqlite" and set
+//   DATABASE_URL="file:./dev.db". No other changes are required.
+//
+// Status/enum-like fields are modeled as String (portable across Postgres and
+// SQLite) and constrained in the TypeScript layer (see src/lib/kpi/types.ts and
+// the server actions). Allowed values are documented inline below.
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Kpi {
+  id          String          @id @default(cuid())
+  code        String          @unique // joins the calculator registry
+  name        String
+  description String
+  goalText    String // human target, e.g. "≥ 95%"
+  target      Float // numeric threshold used in compute
+  direction   String // HIGHER_IS_BETTER | LOWER_IS_BETTER
+  unit        String // "%", "hours"
+  formulaText String // how-it-is-measured prose (shown to owner + used in AI prompt)
+  inputSchema Json // [{ key, label, type, help }] — renders the form
+  submissions KpiSubmission[]
+  assignments KpiAssignment[]
+  createdAt   DateTime        @default(now())
+}
+
+model User {
+  id          String          @id @default(cuid())
+  entraId     String?         @unique // Entra "oid" claim, set on first SSO login
+  name        String
+  email       String          @unique
+  role        String          @default("OWNER") // OWNER | ADMIN
+  submissions KpiSubmission[] @relation("owner")
+  reviews     KpiSubmission[] @relation("reviewer")
+  assignments KpiAssignment[]
+  createdAt   DateTime        @default(now())
+}
+
+// Admin-managed: which owner(s) are responsible for which KPI (many-to-many).
+model KpiAssignment {
+  id           String   @id @default(cuid())
+  kpi          Kpi      @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  kpiId        String
+  owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId      String
+  assignedById String // admin who created the assignment
+  createdAt    DateTime @default(now())
+
+  @@unique([kpiId, ownerId])
+}
+
+model KpiSubmission {
+  id                   String     @id @default(cuid())
+  kpi                  Kpi        @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  kpiId                String
+  owner                User       @relation("owner", fields: [ownerId], references: [id])
+  ownerId              String
+  period               String // e.g. "2026-Q1"
+  inputs               Json // { numerator, denominator, ... }
+  narrative            String
+  computedValue        Float? // null if AI-blocked before compute
+  complianceStatus     String? // MEETS | DOES_NOT_MEET
+  // AI gate
+  aiValidationStatus   String // RELEVANT | IRRELEVANT | SKIPPED
+  aiValidationReason   String?
+  aiCorrectionGuidance String? // actionable "how to fix" shown to owner on failure
+  // human admin gate
+  reviewStatus         String     @default("PENDING_REVIEW") // NEEDS_CORRECTION | PENDING_REVIEW | APPROVED | REJECTED
+  reviewer             User?      @relation("reviewer", fields: [reviewerId], references: [id])
+  reviewerId           String?
+  reviewComment        String?
+  reviewedAt           DateTime?
+  evidence             Evidence[]
+  createdAt            DateTime   @default(now())
+}
+
+model Evidence {
+  id           String        @id @default(cuid())
+  submission   KpiSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  submissionId String
+  fileName     String
+  filePath     String // path under /uploads
+  mimeType     String
+  description  String        @default("")
+  createdAt    DateTime      @default(now())
+}
