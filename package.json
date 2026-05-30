@@ -5,9 +5,11 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "prisma generate && prisma db push --skip-generate && prisma db seed && next build",
     "start": "next start",
     "lint": "next lint",
-    "db:migrate": "prisma migrate dev",
+    "postinstall": "prisma generate",
+    "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset --force"
   },

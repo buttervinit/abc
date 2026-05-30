@@ -10,7 +10,11 @@ export default async function AdminReviewsPage() {
   const pending = await db.kpiSubmission.findMany({
     where: { reviewStatus: "PENDING_REVIEW" },
     orderBy: { createdAt: "asc" },
-    include: { kpi: true, owner: true, evidence: true },
+    include: {
+      kpi: true,
+      owner: true,
+      evidence: { select: { id: true, fileName: true } },
+    },
   });
 
   return (

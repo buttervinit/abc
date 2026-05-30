@@ -1,16 +1,20 @@
 // GRC Platform — Cybersecurity / ISMS KPI module
 //
-// Default datasource is PostgreSQL (run `docker compose up -d db`).
-// SQLite fallback (zero infra): change provider to "sqlite" and set
-//   DATABASE_URL="file:./dev.db". No other changes are required.
+// Datasource is PostgreSQL (Vercel Postgres / Neon in production; any Postgres
+// locally). Set POSTGRES_PRISMA_URL and POSTGRES_URL_NON_POOLING in .env — for a
+// plain local Postgres both can point at the same connection string.
 //
 // Status/enum-like fields are modeled as String (portable across Postgres and
 // SQLite) and constrained in the TypeScript layer (see src/lib/kpi/types.ts and
 // the server actions). Allowed values are documented inline below.
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // On Vercel, the Vercel Postgres / Neon integration provides these vars.
+  // POSTGRES_PRISMA_URL is the pooled connection used at runtime;
+  // POSTGRES_URL_NON_POOLING is the direct connection used for migrate/db push.
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
 }
 
 generator client {
@@ -88,7 +92,7 @@ model Evidence {
   submission   KpiSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   submissionId String
   fileName     String
-  filePath     String // path under /uploads
+  data         Bytes // file content stored in the DB (Vercel fs is ephemeral/read-only)
   mimeType     String
   description  String        @default("")
   createdAt    DateTime      @default(now())

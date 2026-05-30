@@ -22,7 +22,7 @@ export default async function KpiDetailPage({
       assignments: true,
       submissions: {
         orderBy: { createdAt: "desc" },
-        include: { owner: true, evidence: true },
+        include: { owner: true, evidence: { select: { id: true, fileName: true } } },
       },
     },
   });

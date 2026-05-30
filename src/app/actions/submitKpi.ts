@@ -9,9 +9,20 @@ import { validateEvidenceRelevance } from "@/lib/anthropic";
 
 export interface UploadedFile {
   fileName: string;
-  filePath: string;
+  /** Base64-encoded file content; stored as bytes in the Evidence table. */
+  dataBase64: string;
   mimeType: string;
   description?: string;
+}
+
+/** Maps client-uploaded files to Prisma Evidence `create` rows (decoding bytes). */
+function toEvidenceCreate(files: UploadedFile[]) {
+  return files.map((f) => ({
+    fileName: f.fileName,
+    data: Buffer.from(f.dataBase64, "base64"),
+    mimeType: f.mimeType,
+    description: f.description ?? "",
+  }));
 }
 
 export interface SubmitKpiInput {
@@ -86,14 +97,7 @@ export async function submitKpi(input: SubmitKpiInput): Promise<SubmitResult> {
         aiValidationReason: verdict.reason,
         aiCorrectionGuidance: verdict.guidance,
         reviewStatus: "NEEDS_CORRECTION",
-        evidence: {
-          create: input.uploadedFiles.map((f) => ({
-            fileName: f.fileName,
-            filePath: f.filePath,
-            mimeType: f.mimeType,
-            description: f.description ?? "",
-          })),
-        },
+        evidence: { create: toEvidenceCreate(input.uploadedFiles) },
       },
     });
     revalidatePath(`/kpi/${input.kpiCode}`);
@@ -121,14 +125,7 @@ export async function submitKpi(input: SubmitKpiInput): Promise<SubmitResult> {
       aiValidationStatus: verdict.skipped ? "SKIPPED" : "RELEVANT",
       aiValidationReason: verdict.reason,
       reviewStatus: "PENDING_REVIEW",
-      evidence: {
-        create: input.uploadedFiles.map((f) => ({
-          fileName: f.fileName,
-          filePath: f.filePath,
-          mimeType: f.mimeType,
-          description: f.description ?? "",
-        })),
-      },
+      evidence: { create: toEvidenceCreate(input.uploadedFiles) },
     },
   });
 

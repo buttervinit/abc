@@ -10,6 +10,17 @@ interface InputField {
   help?: string;
 }
 
+/** Encode file bytes as base64 in the browser (chunked to avoid call-stack limits). */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
 interface Prefill {
   period?: string;
   narrative?: string;
@@ -44,18 +55,21 @@ export default function SubmissionForm({
     setBusy(true);
     setResult(null);
     try {
-      // 1. Upload evidence files (if any) and collect their stored metadata.
+      // 1. Read evidence files (if any) into base64 to send with the submission.
+      //    Files are stored as bytes in the DB (Vercel's filesystem is ephemeral).
       let uploadedFiles: {
         fileName: string;
-        filePath: string;
+        dataBase64: string;
         mimeType: string;
       }[] = [];
       if (files && files.length > 0) {
-        const fd = new FormData();
-        Array.from(files).forEach((f) => fd.append("files", f));
-        const res = await fetch("/api/upload", { method: "POST", body: fd });
-        if (!res.ok) throw new Error("File upload failed");
-        uploadedFiles = (await res.json()).files;
+        uploadedFiles = await Promise.all(
+          Array.from(files).map(async (f) => ({
+            fileName: f.name,
+            mimeType: f.type || "application/octet-stream",
+            dataBase64: arrayBufferToBase64(await f.arrayBuffer()),
+          })),
+        );
       }
 
       // 2. Parse numeric inputs.

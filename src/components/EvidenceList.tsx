@@ -1,7 +1,6 @@
 export interface EvidenceItem {
   id: string;
   fileName: string;
-  filePath: string;
 }
 
 export default function EvidenceList({ evidence }: { evidence: EvidenceItem[] }) {
@@ -13,7 +12,7 @@ export default function EvidenceList({ evidence }: { evidence: EvidenceItem[] })
       {evidence.map((e) => (
         <li key={e.id}>
           <a
-            href={`/api/files/${encodeURIComponent(e.filePath)}`}
+            href={`/api/files/${encodeURIComponent(e.id)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm text-blue-700 underline hover:text-blue-900"
