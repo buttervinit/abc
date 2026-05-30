@@ -9,7 +9,7 @@
 // the server actions). Allowed values are documented inline below.
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
